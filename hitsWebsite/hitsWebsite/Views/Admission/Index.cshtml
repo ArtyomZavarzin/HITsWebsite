@@ -1,0 +1,338 @@
+﻿@using hitsWebsite.Models.ViewModels
+@using hitsWebsite.Services
+@inject IDataProviderService DataProviderService
+@inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer localizer
+@inject Microsoft.Extensions.Options.IOptions<Microsoft.AspNetCore.Builder.RequestLocalizationOptions> localizationOptions
+
+@{
+    // projectNameOfPage
+    ViewData["Title"] = "Admission";
+
+    // Cultures info
+    var requestedCulture = Context.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>().RequestCulture.UICulture.Name;  // Current culture request
+    var supportedCultures = localizationOptions.Value.SupportedUICultures;  // Supported cultures in app
+
+    // projectNameOfBlocks
+    const string AcademicSubjectsName = "AcademicSubjectsBlock";
+    const string AdmissionСonditionsName = "AdmissionСonditionsBlock";
+    const string RequiredDocumentsName = "RequiredDocumentsBlock";
+
+    // DB entities
+    var academicSubjects = await DataProviderService.GetAcademicSubjects();
+    var condition = await DataProviderService.GetCondition();
+    var document = await DataProviderService.GetDocument();
+}
+
+
+<partial name="_DynamicPageInfo" model="@ViewData["Title"]" />
+
+
+<div class="row pt-4">
+
+    <partial name="_LeftNavigationBar" />
+
+    <div id="blocks-container" class="col col-lg-9">
+
+        @*  ACADEMIC SUBJECTS  *@
+        <div class="row info-block">
+
+            <partial name="_BlockName" model='new _BlockNameViewModel() {
+                    CurrentControllerName = ViewData["Title"].ToString(),
+                    ProjectBlockName = AcademicSubjectsName
+                }' />
+
+            <div class="col-12 mt-3">
+                @if (academicSubjects.Count == 0 && !User.IsInRole(ApplicationRoles.Administrators))
+                {
+                    <h6>@localizer["EmptyCards"]</h6>
+                }
+                else
+                {
+                    <div class="row cards-container">
+
+                        @for (var i = 0; i < academicSubjects.Count; i++)
+                        {
+                            var idEdit = $"subject-edit-{i}";
+                            var idDelete = $"subject-delete-{i}";
+
+                            <div class="col-md-6 col-lg-6 col-xl-4 card-container">
+                                <div class="card box">
+                                    @if (User.IsInRole(ApplicationRoles.Administrators))
+                                    {
+                                        <div class="card-btns-container">
+                                            <button class="open-popup btn-edit" rel="@idEdit"></button>
+                                            <button class="open-popup btn-delete" rel="@idDelete"></button>
+                                        </div>
+                                    }
+                                    <h4>@academicSubjects[i].AcademicSubjectTranslations.Where(x => x.Language == requestedCulture).SingleOrDefault().Name</h4>
+                                    <p class="pt-3">
+                                        @academicSubjects[i].AcademicSubjectTranslations.Where(x => x.Language == requestedCulture).SingleOrDefault().Description
+                                    </p>
+                                </div>
+                            </div>
+
+                            @if (User.IsInRole(ApplicationRoles.Administrators))
+                            {
+                                <partial name="_PopupOpen" model="@idEdit" />
+                                <form asp-action="EditAcademicSubject" asp-route-id="@academicSubjects[i].Id">
+
+                                    <h4>@localizer["EditAction"]</h4>
+
+                                    @for (var j = 0; j < supportedCultures.Count; j++)
+                                    {
+                                        <h5>@supportedCultures[j].Name</h5>
+
+                                        <input required name="Name" type="text" placeholder="@localizer["InputName"]" autocomplete="off" class="entry-field"
+                                               value="@academicSubjects[i].AcademicSubjectTranslations.Where(x => x.Language == supportedCultures[j].Name).SingleOrDefault().Name" />
+
+                                        <textarea required name="Description" type="text" placeholder="@localizer["InputDescription"]" autocomplete="off"
+                                                  class="entry-field mt-3">@academicSubjects[i].AcademicSubjectTranslations.Where(x => x.Language == supportedCultures[j].Name).SingleOrDefault().Description</textarea>
+
+                                        <input required hidden name="Language" type="text" value="@supportedCultures[j].Name" />
+                                        <hr>
+                                    }
+
+                                    <div class="mt-3 d-flex justify-content-end">
+                                        <button type="button" class="close-popup btn btn-outline-danger mr-2">@localizer["ButtonCancel"]</button>
+                                        <button type="submit" class="btn btn-outline-primary">@localizer["ButtonSave"]</button>
+                                    </div>
+                                </form>
+                                <partial name="_PopupClose" />
+
+
+                                <partial name="_PopupOpen" model="@idDelete" />
+                                <form asp-action="DeleteAcademicSubject" asp-route-id="@academicSubjects[i].Id">
+
+                                    <h4>@localizer["DeleteAction"]</h4>
+
+                                    @for (var j = 0; j < supportedCultures.Count; j++)
+                                    {
+                                        <h5>@supportedCultures[j].Name</h5>
+                                        <div>
+                                            @localizer["InputName"]:
+                                            @academicSubjects[i].AcademicSubjectTranslations.Where(x => x.Language == supportedCultures[j].Name).SingleOrDefault().Name
+                                            <br>
+                                            @localizer["InputDescription"]:
+                                            @academicSubjects[i].AcademicSubjectTranslations.Where(x => x.Language == supportedCultures[j].Name).SingleOrDefault().Description
+                                        </div>
+                                        <hr>
+                                    }
+
+                                    <div class="mt-3 d-flex justify-content-end">
+                                        <button type="button" class="close-popup btn btn-outline-danger mr-2">@localizer["ButtonCancel"]</button>
+                                        <button type="submit" class="btn btn-outline-primary">@localizer["ButtonSave"]</button>
+                                    </div>
+                                </form>
+                                <partial name="_PopupClose" />
+                            }
+                        }
+
+
+                        @if (User.IsInRole(ApplicationRoles.Administrators))
+                        {
+                            var idCreate = $"subject-create";
+
+                            <div class="col-md-6 col-lg-6 col-xl-4 card-container">
+                                <div class="card box adding-card">
+                                    <input type="button" class="open-popup add-btn" rel="@idCreate" />
+                                </div>
+                            </div>
+
+                            <partial name="_PopupOpen" model="idCreate" />
+                            <form asp-action="CreateAcademicSubject" method="post">
+
+                                <h4>@localizer["AddAction"]</h4>
+
+                                @for (var i = 0; i < supportedCultures.Count; i++)
+                                {
+                                    <h5>@supportedCultures[i].Name</h5>
+                                    <input required name="Name" type="text" placeholder="@localizer["InputName"]" autocomplete="off" class="entry-field" />
+                                    <textarea required name="Description" type="text" placeholder="@localizer["InputDescription"]" autocomplete="off" class="entry-field mt-3"></textarea>
+
+                                    <input required hidden name="Language" type="text" value="@supportedCultures[i].Name" />
+                                    <hr>
+                                }
+
+                                <div class="mt-3 d-flex justify-content-end">
+                                    <button type="button" class="close-popup btn btn-outline-danger mr-2">@localizer["ButtonCancel"]</button>
+                                    <button type="submit" class="btn btn-primary">@localizer["ButtonSave"]</button>
+                                </div>
+                            </form>
+                            <partial name="_PopupClose" />
+                        }
+
+                    </div>
+                }
+
+
+
+                @*  PROBABILITY OF ADMISSION (FRONT-END ONLY)  *@
+                <div class="row mt-4">
+
+                    <div class="col-12 w-100">
+                        <h3 style="color:dodgerblue;">@localizer["ProbabilityOfAdmission"]<span class="purple-highlight">*</span></h3>
+                    </div>
+
+                    <div class="col-12 mt-3">
+                        <div class="box">
+
+                            <div class="row">
+                                <div class="col-md-6 d-flex justify-content-center align-items-center" style="height: 250px;">
+                                    <p>currently unavailable</p>
+                                </div>
+
+                                <div class="col-md-6 pt-4 pt-md-0 d-flex align-items-center">
+
+                                    <div class="w-md-75" style="margin: auto;">
+
+                                        <div class="row justify-content-center justify-content-md-start">
+                                            <div class="col-auto"><h5>@localizer["PaidTuition"]:</h5></div>
+                                            <div id="paid-chance" class="col-auto">80%</div>
+                                            <div class="w-100"></div>
+                                            <div class="col-auto"><h5>@localizer["FreeTuition"]:</h5></div>
+                                            <div id="budgetary-chance" class="col-auto">20%</div>
+                                        </div>
+                                        <div class="small-addition">
+                                            <div>
+                                                <span class="purple-highlight">*</span>&nbsp;&nbsp;&nbsp;
+                                            </div>
+                                            <div>
+                                                @localizer["AdmissionData"]
+                                            </div>
+                                        </div>
+
+                                    </div>
+
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+
+        @*  CONDITIONS OF ADMISSIONS  *@
+        <div class="row info-block mt-5">
+            <partial name="_BlockName" model='new _BlockNameViewModel() {
+                    CurrentControllerName = ViewData["Title"].ToString(),
+                    ProjectBlockName = AdmissionСonditionsName
+                }' />
+
+            <div class="col-12 mt-3">
+                <div class="box large-text">
+                    @* EDIT CONDITIONS *@
+                    @if (User.IsInRole(ApplicationRoles.Administrators))
+                    {
+                        var idEdit = "conditions-edit";
+
+                        <div class="card-btns-container">
+                            <button class="open-popup btn-edit" rel="@idEdit"></button>
+                        </div>
+
+                        <partial name="_PopupOpen" model="idEdit" />
+                        <form asp-action="EditConditions" method="post">
+
+                            <h4>@localizer["EditAction"]</h4>
+
+                            @for (var j = 0; j < supportedCultures.Count; j++)
+                            {
+                                <script src="~/lib/ckeditor/ckeditor.js"></script>
+                                <h5>@supportedCultures[j].Name</h5>
+
+                                <textarea required name="Description" id="conditions-@j" type="text" autocomplete="off" placeholder="@localizer["InputDescription"]"
+                                          class="entry-field mt-3">@Html.Raw(condition.ConditionTranslations.Where(x=> x.Language == supportedCultures[j].Name).SingleOrDefault().Description)</textarea>
+
+                                <input required hidden type="text" name="Language" value="@supportedCultures[j].Name" />
+                                <hr>
+
+                                <script>
+                                     document.addEventListener("DOMContentLoaded", function (event) {
+                                         var editor = CKEDITOR.replace("conditions-" + @j);
+                                     });
+                                </script>
+                            }
+
+                            <div class="mt-3 d-flex justify-content-end">
+                                <button type="button" class="close-popup btn btn-outline-danger mr-2">@localizer["ButtonCancel"]</button>
+                                <button type="submit" class="btn btn-outline-primary">@localizer["ButtonSave"]</button>
+                            </div>
+                        </form>
+                        <partial name="_PopupClose" />
+                    }
+
+                    @* RETRIEVE CONDITIONS *@
+                    <div>
+                        @Html.Raw(condition.ConditionTranslations.Where(x => x.Language == requestedCulture).SingleOrDefault().Description)
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+
+        @*  DOCUMENTS  *@
+        <div class="row info-block mt-5">
+            <partial name="_BlockName" model='new _BlockNameViewModel() {
+                    CurrentControllerName = ViewData["Title"].ToString(),
+                    ProjectBlockName = RequiredDocumentsName
+                }' />
+
+            <div class="col-12 mt-3">
+                <div class="box large-text">
+
+                    @* EDIT DOCUMENTS *@
+                    @if (User.IsInRole(ApplicationRoles.Administrators))
+                    {
+                        var idEdit = "documents-edit";
+
+                        <div class="card-btns-container">
+                            <button class="open-popup btn-edit" rel="@idEdit"></button>
+                        </div>
+
+                        <partial name="_PopupOpen" model="idEdit" />
+                        <form asp-action="EditDocuments" method="post">
+
+                            <h4>@localizer["EditAction"]</h4>
+
+                            @for (var j = 0; j < supportedCultures.Count; j++)
+                            {
+                                <script src="~/lib/ckeditor/ckeditor.js"></script>
+                                <h5>@supportedCultures[j].Name</h5>
+
+                                <textarea required name="Description" id="documents-@j" type="text" placeholder="@localizer["InputDescription"]" autocomplete="off"
+                                          class="entry-field mt-3">@Html.Raw(document.DocumentTranslations.Where(x=> x.Language == supportedCultures[j].Name).SingleOrDefault().Description)</textarea>
+
+                                <input required hidden name="Language" type="text" value="@supportedCultures[j].Name" />
+                                <hr>
+
+                                <script>
+                                     document.addEventListener("DOMContentLoaded", function (event) {
+                                         var editor = CKEDITOR.replace("documents-" + @j);
+                                     });
+                                </script>
+                            }
+
+                            <div class="mt-3 d-flex justify-content-end">
+                                <button type="button" class="close-popup btn btn-outline-danger mr-2">@localizer["ButtonCancel"]</button>
+                                <button type="submit" class="btn btn-outline-primary">@localizer["ButtonSave"]</button>
+                            </div>
+                        </form>
+                        <partial name="_PopupClose" />
+                    }
+
+                    @* RETRIEVE DOCUMENTS *@
+                    <div>
+                        @Html.Raw(document.DocumentTranslations.Where(x => x.Language == requestedCulture).SingleOrDefault().Description)
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>

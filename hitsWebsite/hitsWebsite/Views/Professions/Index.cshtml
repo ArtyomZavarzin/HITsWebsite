@@ -1,0 +1,236 @@
+﻿@using hitsWebsite.Services
+@using hitsWebsite.Models.ViewModels
+@inject IDataProviderService DataProviderService
+@inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer localizer
+@inject Microsoft.Extensions.Options.IOptions<Microsoft.AspNetCore.Builder.RequestLocalizationOptions> localizationOptions
+
+@{
+    // projectNameOfPage/name of current controller
+    ViewData["Title"] = "Professions";
+
+    // Cultures info
+    var requestedCulture = Context.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>().RequestCulture.UICulture.Name;  // Current culture request
+    var supportedCultures = localizationOptions.Value.SupportedUICultures;  // Supported cultures in app
+
+    // projectNameOfBlocks
+    const string ProfessionsName = "ProfessionsBlock";
+
+    // DB entities
+    var professions = await DataProviderService.GetProfessions();
+}
+
+
+<partial name="_DynamicPageInfo" model="@ViewData["Title"].ToString()" />
+
+
+<div class="row pt-4">
+
+    <partial name="_LeftNavigationBar" />
+
+    <div id="blocks-container" class="col col-lg-9">
+        @*  PROFESSIONS  *@
+        <div class="row info-block">
+
+            <partial name="_BlockName" model='new _BlockNameViewModel() {
+                    CurrentControllerName = ViewData["Title"].ToString(),
+                    ProjectBlockName = ProfessionsName
+            }' />
+
+            <div class="col-12 mt-3">
+
+                @if (professions.Count == 0 && !User.IsInRole(ApplicationRoles.Administrators))
+                {
+                    <h6>@localizer["EmptyCards"]</h6>
+                }
+                else
+                {
+                    <div class="row cards-container">
+
+                        @for (var i = 0; i < professions.Count; i++)
+                        {
+                            var idEdit = $"profession-edit-{i}";
+                            var idDelete = $"profession-delete-{i}";
+
+                            <div class="col-md-6 col-lg-6 col-xl-4 card-container">
+                                <div class="card box">
+                                    @if (User.IsInRole(ApplicationRoles.Administrators))
+                                    {
+                                        <div class="card-btns-container">
+                                            <button class="open-popup btn-edit" rel="@idEdit"></button>
+                                            <button class="open-popup btn-delete" rel="@idDelete"></button>
+                                        </div>
+                                    }
+                                    <h4>@professions[i].ProfessionTranslations.Where(x => x.Language == requestedCulture).SingleOrDefault().Name</h4>
+                                    <p class="pt-3">
+                                        @professions[i].ProfessionTranslations.Where(x => x.Language == requestedCulture).SingleOrDefault().Description
+                                    </p>
+                                </div>
+                            </div>
+
+                            @* EDIT & DELETE PROFESSION CARD *@
+                            @if (User.IsInRole(ApplicationRoles.Administrators))
+                            {
+                                <partial name="_PopupOpen" model="@idEdit" />
+                                <form asp-action="EditProfession" asp-route-id="@professions[i].Id">
+
+                                    <h4>@localizer["EditAction"]</h4>
+
+                                    @for (var j = 0; j < supportedCultures.Count; j++)
+                                    {
+                                        <h5>@supportedCultures[j].Name</h5>
+
+                                        <input required name="Name" type="text" placeholder="@localizer["InputName"]" autocomplete="off" class="entry-field"
+                                               value="@professions[i].ProfessionTranslations.Where(x => x.Language == supportedCultures[j].Name).SingleOrDefault().Name" />
+
+                                        <textarea required name="Description" type="text" placeholder="@localizer["InputDescription"]" autocomplete="off" class="entry-field mt-3">@professions[i].ProfessionTranslations.Where(x => x.Language == supportedCultures[j].Name).SingleOrDefault().Description</textarea>
+
+                                        <hr>
+
+                                        <input required hidden name="Language" type="text" value="@supportedCultures[j].Name" />
+                                    }
+
+                                    <div class="mt-3 d-flex justify-content-end">
+                                        <button type="button" class="close-popup btn btn-outline-danger mr-2">@localizer["ButtonCancel"]</button>
+                                        <button type="submit" class="btn btn-outline-primary">@localizer["ButtonSave"]</button>
+                                    </div>
+                                </form>
+                                <partial name="_PopupClose" />
+
+
+                                <partial name="_PopupOpen" model="@idDelete" />
+                                <form asp-action="DeleteProfession" asp-route-id="@professions[i].Id">
+
+                                    <h4>@localizer["DeleteAction"]</h4>
+
+                                    @for (var j = 0; j < supportedCultures.Count; j++)
+                                    {
+                                        <h5>@supportedCultures[j].Name</h5>
+                                        <div>
+                                            @localizer["InputName"]:
+                                            @professions[i].ProfessionTranslations.Where(x => x.Language == supportedCultures[j].Name).SingleOrDefault().Name
+                                            <br>
+                                            @localizer["InputDescription"]:
+                                            @professions[i].ProfessionTranslations.Where(x => x.Language == supportedCultures[j].Name).SingleOrDefault().Description
+                                        </div>
+                                        <hr>
+                                    }
+
+                                    <div class="mt-3 d-flex justify-content-end">
+                                        <button type="button" class="close-popup btn btn-outline-danger mr-2">@localizer["ButtonCancel"]</button>
+                                        <button type="submit" class="btn btn-outline-primary">@localizer["ButtonSave"]</button>
+                                    </div>
+                                </form>
+                                <partial name="_PopupClose" />
+                            }
+                        }
+
+
+                        @* CREATE PROFESSION CARD *@
+                        @if (User.IsInRole(ApplicationRoles.Administrators))
+                        {
+                            var idCreate = $"profession-create";
+
+                            <div class="col-md-6 col-lg-6 col-xl-4 card-container">
+                                <div class="card box adding-card">
+                                    <input type="button" class="open-popup add-btn" rel="@idCreate" />
+                                </div>
+                            </div>
+
+                            <partial name="_PopupOpen" model="idCreate" />
+                            <form asp-action="CreateProfession" method="post">
+
+                                <h4>@localizer["AddAction"]</h4>
+
+                                @for (var i = 0; i < supportedCultures.Count; i++)
+                                {
+                                    <h5>@supportedCultures[i].Name</h5>
+
+                                    <input required name="Name" type="text" placeholder="@localizer["InputName"]" autocomplete="off" class="entry-field" />
+                                    <textarea required name="Description" type="text" placeholder="@localizer["InputDescription"]" autocomplete="off" class="entry-field mt-3"></textarea>
+
+                                    <input required hidden name="Language" type="text" value="@supportedCultures[i].Name" />
+                                    <hr>
+                                }
+
+                                <div class="mt-3 d-flex justify-content-end">
+                                    <button type="button" class="close-popup btn btn-outline-danger mr-2">@localizer["ButtonCancel"]</button>
+                                    <button type="submit" class="btn btn-primary">@localizer["ButtonSave"]</button>
+                                </div>
+
+                            </form>
+                            <partial name="_PopupClose" />
+                        }
+                    </div>
+                }
+
+
+            </div>
+        </div>
+
+
+        @*  HITS TEST (FRONT-END ONLY)  *@
+        <div class="row info-block mt-5">
+
+            <div class="col-12">
+                <h2 style="color:dodgerblue;">@localizer["HitsTest"]</h2>
+            </div>
+
+            <div class="col-12 mt-3 test-hits">
+
+                <div class="row">
+                    <div class="col-md-6 col-lg-12">
+
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6>@localizer["JokeQuestion1"]</h6>
+                            </div>
+                            <div class="col-12 col-lg-6 col-xl-5">
+                                <input class="entry-field" type="text" placeholder="@localizer["Answer"]" />
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="col-md-6 col-lg-12">
+
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6>@localizer["JokeQuestion2"]</h6>
+                            </div>
+                            <div class="col-11 col-lg-6 col-xl-5">
+                                <div class="row pt-2">
+                                    <div class="col-auto mb-2"><button class="answer">@localizer["Answer1"]</button></div>
+                                    <div class="col-auto mb-2"><button class="answer">@localizer["Answer2"]</button></div>
+                                    <div class="col-auto mb-2"><button class="answer">@localizer["Answer3"]</button></div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="col-md-6 col-lg-12">
+
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6>@localizer["JokeQuestion3"]</h6>
+                            </div>
+                            <div class="col-12 col-lg-6 col-xl-5">
+                                <input class="entry-field" type="text" placeholder="@localizer["Answer"]" />
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="col-md-6 col-lg-12">
+
+                        <div class="row mt-lg-4">
+                            <div class="col-12 col-lg-5 col-xl-4">
+                                <button type="button" class="big-btn">@localizer["Result"]</button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
